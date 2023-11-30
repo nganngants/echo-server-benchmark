@@ -50,7 +50,6 @@ int main(int argc, char *argv[]) {
   if (sock_listen_fd < 0) return -1;
   printf("io_uring echo server listening for connections on port %d\n", portno);
 
-  // create conn_info structs
   for (int i = 0; i < MAX_CONNECTIONS - 1; i++) {
     // global variables are initialized to zero by default
     iovecs[i].iov_base = bufs[i];
@@ -60,7 +59,11 @@ int main(int argc, char *argv[]) {
 
   // initialize io_uring
   struct io_uring ring;
-  io_uring_queue_init(MAX_CONNECTIONS, &ring, 0);
+  int ret = io_uring_queue_init(MAX_CONNECTIONS, &ring, 0);
+  if (ret < 0) {
+    fprintf(stderr, "queue_init: %s\n", strerror(-ret));
+		return -1;
+  }
 
   // add first io_uring poll sqe, to check when there will be data available on
   // sock_listen_fd
@@ -113,6 +116,7 @@ int main(int argc, char *argv[]) {
         // no bytes available on socket, client must be disconnected
         io_uring_cqe_seen(&ring, cqe);
         shutdown(user_data->fd, SHUT_RDWR);
+        close(user_data->fd); 
       } else {
         // bytes have been read into iovec, add write to socket sqe
         io_uring_cqe_seen(&ring, cqe);

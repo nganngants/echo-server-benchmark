@@ -75,31 +75,14 @@ int main(int argc, char *argv[]) {
         }
         add_poll(epfd, sock_conn_fd, EPOLLIN);
       } else {
-#if USE_SPLICE
-        int bytes_read =
-            splice(fd, NULL, pipefds[1], NULL, MAX_MESSAGE_LEN, SPLICE_F_MOVE);
-#else
         char buffer[MAX_MESSAGE_LEN];
-
-#if USE_RECV_SEND
         int bytes_read = recv(fd, buffer, MAX_MESSAGE_LEN, MSG_NOSIGNAL);
-#else
-        int bytes_read = read(fd, buffer, MAX_MESSAGE_LEN);
-#endif
-#endif
+
         if (__builtin_expect(bytes_read <= 0, 0)) {
           epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
           shutdown(fd, SHUT_RDWR);
         } else {
-#if USE_SPLICE
-          splice(pipefds[0], NULL, fd, NULL, bytes_read, SPLICE_F_MOVE);
-#else
-#if USE_RECV_SEND
           send(fd, buffer, bytes_read, MSG_NOSIGNAL);
-#else
-          write(fd, buffer, bytes_read);
-#endif
-#endif
         }
       }
     }
